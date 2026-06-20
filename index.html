@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Processing System</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script defer src="app.js"></script>
+</head>
+<body>
+
+    <!-- NAVIGATION BAR -->
+    <nav id="navbar" class="hidden">
+        <div class="nav-brand">Inventory & Orders</div>
+        <div class="nav-links">
+            <span id="welcome-text"></span>
+            <button id="shop-btn" class="nav-btn hidden">Products</button>
+            <button id="orders-btn" class="nav-btn hidden">Order History</button>
+            <button id="report-btn" class="nav-btn hidden">Sales Report</button>
+            <button id="cart-btn" class="nav-btn hidden">🛒 Cart (<span id="cart-count">0</span>)</button>
+            <button id="logout-btn" class="nav-btn btn-danger">Logout</button>
+        </div>
+    </nav>
+
+    <!-- ================================================ -->
+    <!-- 1. AUTH SECTION (Login + Signup toggled in JS)   -->
+    <!-- ================================================ -->
+    <section id="auth-section" class="container">
+
+        <!-- LOGIN PANEL -->
+        <div id="login-panel" class="login-card glass-panel">
+            <h2>Welcome Back</h2>
+            <p>Sign in to your account</p>
+            <form id="login-form">
+                <input type="text" id="username" placeholder="Username" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <button type="submit" class="btn-primary">Sign In</button>
+                <div id="login-error" class="error-text"></div>
+            </form>
+            <div class="auth-switch">
+                New customer? <a href="#" id="go-to-signup">Create an account</a>
+            </div>
+            <div class="test-accounts">
+                <small><b>Test Employees:</b> admin1 | admin2 &nbsp;(Pass: pass123)</small><br>
+                <small><b>Test Customers:</b> johndoe | janedoe &nbsp;(Pass: pass123)</small>
+            </div>
+        </div>
+
+        <!-- SIGNUP PANEL (hidden by default) -->
+        <div id="signup-panel" class="login-card glass-panel hidden">
+            <h2>Create Account</h2>
+            <p>Register as a new customer</p>
+            <form id="signup-form">
+                <input type="text" id="signup-username" placeholder="Choose a username" required>
+                <input type="password" id="signup-password" placeholder="Choose a password" required>
+                <input type="text" id="signup-address" placeholder="Your address" required>
+                <input type="text" id="signup-phone" placeholder="Phone number" required>
+                <button type="submit" class="btn-success" style="margin-top:5px;">Register</button>
+                <div id="signup-error" class="error-text"></div>
+            </form>
+            <div class="auth-switch">
+                Already have an account? <a href="#" id="go-to-login">Sign in</a>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- ================================================ -->
+    <!-- 2. CUSTOMER STOREFRONT                          -->
+    <!-- ================================================ -->
+    <section id="customer-section" class="hidden container">
+        <div class="store-header">
+            <h2>Featured Products</h2>
+            <p class="subtitle">Add items to your cart and checkout with Oracle-backed transactions.</p>
+        </div>
+        <div id="product-grid" class="grid-container">
+            <!-- Dynamically injected product cards -->
+        </div>
+    </section>
+
+    <!-- ================================================ -->
+    <!-- 3. EMPLOYEE DASHBOARD (Inventory CRUD)          -->
+    <!-- ================================================ -->
+    <section id="employee-section" class="hidden container">
+        <div class="dashboard-header">
+            <h2>Inventory Management</h2>
+            <button id="add-item-btn" class="btn-primary">+ Add New Item</button>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Product Name & Description</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="inventory-body"></tbody>
+        </table>
+    </section>
+
+    <!-- ================================================ -->
+    <!-- 4. ORDER HISTORY                                -->
+    <!-- ================================================ -->
+    <section id="orders-section" class="hidden container">
+        <div class="dashboard-header">
+            <h2 id="orders-title">Order History</h2>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Order #</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Amount</th>
+                    <th>Payment Method</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="orders-body"></tbody>
+        </table>
+    </section>
+
+    <!-- ================================================ -->
+    <!-- 5. SALES REPORT (Employee only, from DB View)   -->
+    <!-- ================================================ -->
+    <section id="report-section" class="hidden container">
+        <div class="dashboard-header">
+            <h2>Sales Report</h2>
+            <span class="view-badge">V_SALES_REPORT view</span>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Product ID</th>
+                    <th>Product Name</th>
+                    <th>Units Sold</th>
+                    <th>Total Revenue</th>
+                </tr>
+            </thead>
+            <tbody id="report-body"></tbody>
+        </table>
+    </section>
+
+    <!-- ================================================ -->
+    <!-- MODAL: Cart & Checkout                          -->
+    <!-- ================================================ -->
+    <div id="checkout-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <span class="close-btn" id="close-modal">&times;</span>
+            <h2>Checkout</h2>
+            <div id="cart-items-list" class="cart-items"></div>
+            <div class="checkout-total">
+                <h3>Total: $<span id="checkout-total-price">0.00</span></h3>
+            </div>
+            <hr>
+            <h4>Select Payment Method</h4>
+            <div class="payment-methods">
+                <label class="payment-card active-payment">
+                    <input type="radio" name="payment" value="CARD" checked class="hidden-radio">
+                    <strong>💳 Credit/Debit Card</strong>
+                    <small>Secure encrypted payment</small>
+                </label>
+                <label class="payment-card">
+                    <input type="radio" name="payment" value="UPI" class="hidden-radio">
+                    <strong>📱 UPI (GPay/PhonePe)</strong>
+                    <small>Instant bank transfer</small>
+                </label>
+                <label class="payment-card">
+                    <input type="radio" name="payment" value="COD" class="hidden-radio">
+                    <strong>🚚 Cash on Delivery</strong>
+                    <small>Pay when it arrives</small>
+                </label>
+            </div>
+            <button id="pay-btn" class="btn-success">Place Order</button>
+            <div id="checkout-error" class="error-text"></div>
+        </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- MODAL: Add Inventory Item (Employee)            -->
+    <!-- ================================================ -->
+    <div id="add-item-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <span class="close-btn" id="close-add-modal">&times;</span>
+            <h2>Add Inventory Item</h2>
+            <form id="add-item-form">
+                <input type="text" id="new-name" placeholder="Product Name" required>
+                <textarea id="new-desc" placeholder="Product Description" required rows="3"></textarea>
+                <input type="number" step="0.01" id="new-price" placeholder="Price (e.g. 50.00)" required>
+                <input type="number" id="new-stock" placeholder="Initial Stock Quantity" required>
+                <button type="submit" class="btn-primary">Save Product</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================================================ -->
+    <!-- MODAL: Edit Product (Employee) — fires audit    -->
+    <!-- ================================================ -->
+    <div id="edit-item-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <span class="close-btn" id="close-edit-modal">&times;</span>
+            <h2>Edit Product</h2>
+            <p style="color:var(--text-secondary);margin-bottom:20px;font-size:0.9rem;">
+                Saving will fire <code style="color:var(--accent)">TRG_AUDIT_PRODUCT</code> and write to <code style="color:var(--accent)">PRODUCT_AUDIT_LOG</code>.
+            </p>
+            <form id="edit-item-form">
+                <input type="hidden" id="edit-product-id">
+                <label style="color:var(--text-secondary);font-size:0.9rem;">Product Name</label>
+                <input type="text" id="edit-product-name" disabled style="opacity:0.5;cursor:not-allowed;">
+                <label style="color:var(--text-secondary);font-size:0.9rem;">New Price ($)</label>
+                <input type="number" step="0.01" id="edit-price" required>
+                <label style="color:var(--text-secondary);font-size:0.9rem;">New Stock Quantity</label>
+                <input type="number" id="edit-stock" required>
+                <button type="submit" class="btn-primary">Save Changes</button>
+                <div id="edit-error" class="error-text"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- NOTIFICATION TOAST -->
+    <div id="toast" class="toast hidden"></div>
+
+</body>
+</html>

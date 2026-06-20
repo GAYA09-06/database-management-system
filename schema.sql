@@ -1,0 +1,121 @@
+-- ======================================================================
+-- DBS MINI PROJECT - TRANSACTION PROCESSING SYSTEM (INVENTORY & ORDERS)
+-- ORACLE SQL SCHEMA DEFINITION (DDL)
+-- ======================================================================
+
+-- AUTO-DROP EXISTING TABLES AND SEQUENCES TO ALLOW CLEAN REBUILDS
+BEGIN
+  FOR t IN (SELECT table_name FROM user_tables WHERE table_name IN (
+    'CART_TEMP', 'PRODUCT_AUDIT_LOG', 'PAYMENTS', 'ORDER_DETAILS', 'ORDERS', 'PRODUCTS', 'EMPLOYEES', 'CUSTOMERS', 'USERS'
+  )) LOOP
+    EXECUTE IMMEDIATE 'DROP TABLE ' || t.table_name || ' CASCADE CONSTRAINTS';
+  END LOOP;
+  FOR s IN (SELECT sequence_name FROM user_sequences WHERE sequence_name IN (
+    'SEQ_USER_ID', 'SEQ_PRODUCT_ID', 'SEQ_ORDER_ID', 'SEQ_PAYMENT_ID', 'SEQ_AUDIT_ID'
+  )) LOOP
+    EXECUTE IMMEDIATE 'DROP SEQUENCE ' || s.sequence_name;
+  END LOOP;
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END;
+/
+
+
+-- 1. USERS TABLE (Handles Authentication & Roles)
+CREATE TABLE USERS (
+    User_ID INT PRIMARY KEY,
+    Username VARCHAR2(50) UNIQUE NOT NULL,
+    Password VARCHAR2(255) NOT NULL,
+    Role VARCHAR2(20) CHECK (Role IN ('EMPLOYEE', 'CUSTOMER')) NOT NULL
+);
+
+-- 2. CUSTOMERS TABLE
+CREATE TABLE CUSTOMERS (
+    Customer_ID INT PRIMARY KEY,
+    Address VARCHAR2(255),
+    Phone VARCHAR2(20),
+    FOREIGN KEY (Customer_ID) REFERENCES USERS(User_ID) ON DELETE CASCADE
+);
+
+-- 3. EMPLOYEES TABLE
+CREATE TABLE EMPLOYEES (
+    Employee_ID INT PRIMARY KEY,
+    Designation VARCHAR2(50),
+    Hire_Date DATE DEFAULT SYSDATE,
+    FOREIGN KEY (Employee_ID) REFERENCES USERS(User_ID) ON DELETE CASCADE
+);
+
+-- 4. PRODUCTS TABLE (Inventory)
+CREATE TABLE PRODUCTS (
+    Product_ID INT PRIMARY KEY,
+    Name VARCHAR2(100) NOT NULL,
+    Description VARCHAR2(500),
+    Price NUMBER(10, 2) CHECK (Price > 0) NOT NULL,
+    Stock_Quantity INT CHECK (Stock_Quantity >= 0) NOT NULL
+);
+
+-- 5. ORDERS TABLE
+CREATE TABLE ORDERS (
+    Order_ID INT PRIMARY KEY,
+    Customer_ID INT NOT NULL,
+    Order_Date DATE DEFAULT SYSDATE NOT NULL,
+    Total_Amount NUMBER(12, 2) DEFAULT 0,
+    Status VARCHAR2(20) DEFAULT 'PENDING' CHECK (Status IN ('PENDING', 'COMPLETED', 'CANCELLED', 'FAILED')),
+    FOREIGN KEY (Customer_ID) REFERENCES CUSTOMERS(Customer_ID)
+);
+
+-- 6. ORDER_DETAILS TABLE
+CREATE TABLE ORDER_DETAILS (
+    Order_ID INT,
+    Product_ID INT,
+    Quantity INT CHECK (Quantity > 0) NOT NULL,
+    Subtotal NUMBER(12, 2),
+    PRIMARY KEY (Order_ID, Product_ID),
+    FOREIGN KEY (Order_ID) REFERENCES ORDERS(Order_ID) ON DELETE CASCADE,
+    FOREIGN KEY (Product_ID) REFERENCES PRODUCTS(Product_ID)
+);
+
+-- 7. PAYMENTS TABLE
+CREATE TABLE PAYMENTS (
+    Payment_ID INT PRIMARY KEY,
+    Order_ID INT NOT NULL,
+    Amount NUMBER(12, 2) NOT NULL,
+    Payment_Method VARCHAR2(20) CHECK (Payment_Method IN ('COD', 'CARD', 'UPI')) NOT NULL,
+    Payment_Status VARCHAR2(20) DEFAULT 'PENDING' CHECK (Payment_Status IN ('PENDING', 'SUCCESS', 'FAILED')),
+    Payment_Date DATE DEFAULT SYSDATE,
+    FOREIGN KEY (Order_ID) REFERENCES ORDERS(Order_ID) ON DELETE CASCADE
+);
+
+-- 8. PRODUCT_AUDIT_LOG (For Triggers & Audit)
+CREATE TABLE PRODUCT_AUDIT_LOG (
+    Audit_ID INT PRIMARY KEY,
+    Product_ID INT NOT NULL,
+    Old_Price NUMBER(10, 2),
+    New_Price NUMBER(10, 2),
+    Old_Stock INT,
+    New_Stock INT,
+    Audit_Date DATE DEFAULT SYSDATE,
+    Action VARCHAR2(50)
+);
+
+-- 9. CART_TEMP TABLE (Bridging Table for Cursors! Critical for DBS Checkout Logic)
+CREATE TABLE CART_TEMP (
+    Customer_ID INT NOT NULL,
+    Product_ID INT NOT NULL,
+    Quantity INT CHECK (Quantity > 0) NOT NULL,
+    Subtotal NUMBER(10, 2) NOT NULL,
+    PRIMARY KEY (Customer_ID, Product_ID),
+    FOREIGN KEY (Customer_ID) REFERENCES CUSTOMERS(Customer_ID) ON DELETE CASCADE,
+    FOREIGN KEY (Product_ID) REFERENCES PRODUCTS(Product_ID) ON DELETE CASCADE
+);
+
+-- ======================================================================
+-- SEQUENCE GENERATORS (For Auto-Incrementing IDs in Oracle)
+-- ======================================================================
+CREATE SEQUENCE SEQ_USER_ID START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE SEQ_PRODUCT_ID START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE SEQ_ORDER_ID START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE SEQ_PAYMENT_ID START WITH 1 INCREMENT BY 1;
+CREATE SEQUENCE SEQ_AUDIT_ID START WITH 100 INCREMENT BY 1;
+
+COMMIT;
